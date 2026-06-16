@@ -108,11 +108,12 @@
     elements.remindersList.innerHTML = reminders.map(r => {
       const priorityClass = r.priority >= 7 ? 'high-priority' : r.priority >= 4 ? 'medium-priority' : 'low-priority';
       const daysClass = r.daysUntil <= 2 ? 'urgent' : r.daysUntil <= 7 ? 'soon' : '';
+      const conflictHtml = r.hasConflict ? `<span class="conflict-tag">${ReminderEngine.getConflictLabel(r.conflictResolution)}</span>` : '';
       
       return `
-        <div class="reminder-item ${priorityClass}">
+        <div class="reminder-item ${priorityClass} ${r.hasConflict ? 'has-conflict' : ''}">
           <div class="reminder-info">
-            <h3>${r.name}</h3>
+            <h3>${r.name} ${conflictHtml}</h3>
             <p>${r.stage.label}</p>
           </div>
           <div class="reminder-days ${daysClass}">
@@ -125,12 +126,26 @@
 
   function renderForecast() {
     elements.forecastList.innerHTML = state.forecast.map(day => {
-      const remindersHtml = day.reminders.length > 0
-        ? day.reminders.map(r => `<div class="forecast-reminder">• ${r.name}</div>`).join('')
-        : '<div class="forecast-empty">没有安排</div>';
+      let remindersHtml = '';
+      
+      if (day.hasConflict && day.reminders.length > 1) {
+        const names = day.reminders.map(r => r.name).join(' + ');
+        const resolution = day.reminders[0].conflictResolution || 'merge';
+        remindersHtml = `
+          <div class="forecast-reminder conflict">⚡ ${names}</div>
+          <div class="forecast-conflict-hint">${ReminderEngine.getConflictLabel(resolution)}</div>
+        `;
+      } else if (day.reminders.length > 0) {
+        remindersHtml = day.reminders.map(r => {
+          const label = r.daysUntil === 0 ? '今天' : r.daysUntil + '天';
+          return `<div class="forecast-reminder">• ${r.name} · ${label}</div>`;
+        }).join('');
+      } else {
+        remindersHtml = '<div class="forecast-empty">没有安排</div>';
+      }
 
       return `
-        <div class="forecast-item">
+        <div class="forecast-item ${day.hasConflict ? 'has-conflict' : ''}">
           <div class="forecast-header">
             <span class="forecast-day-label">${day.dayLabel}</span>
             <span class="forecast-date">${day.weekday} ${day.date.slice(5)}</span>

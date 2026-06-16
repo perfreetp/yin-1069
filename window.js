@@ -108,20 +108,30 @@
 
   function renderForecast() {
     elements.forecastCards.innerHTML = state.forecast.map(day => {
-      const reminder = day.reminders[0];
       let bodyHtml = '';
       
-      if (reminder) {
+      if (day.hasConflict && day.reminders.length > 1) {
+        const names = day.reminders.map(r => r.name).join(' + ');
+        const resolution = day.reminders[0].conflictResolution || 'merge';
+        const label = day.dayOffset === 0 ? '今天' : day.dayOffset + '天';
+        bodyHtml = `
+          <div class="forecast-item-name conflict">⚡ ${names}</div>
+          <div class="forecast-item-days">${label}</div>
+          <div class="forecast-conflict-hint">${ReminderEngine.getConflictLabel(resolution)}</div>
+        `;
+      } else if (day.reminders.length > 0) {
+        const reminder = day.reminders[0];
+        const label = day.dayOffset === 0 ? '今天' : day.dayOffset + '天';
         bodyHtml = `
           <div class="forecast-item-name">${reminder.name}</div>
-          <div class="forecast-item-days">${day.isToday ? '今天' : day.reminders[0].daysUntil + '天'}</div>
+          <div class="forecast-item-days">${label}</div>
         `;
       } else {
         bodyHtml = '<div class="forecast-empty">无安排</div>';
       }
 
       return `
-        <div class="forecast-card ${day.isToday ? 'is-today' : ''}">
+        <div class="forecast-card ${day.isToday ? 'is-today' : ''} ${day.hasConflict ? 'has-conflict' : ''}">
           <div class="forecast-day">${day.dayLabel}</div>
           <div class="forecast-date">${day.weekday} ${day.date.slice(5)}</div>
           <div class="forecast-body">
@@ -157,11 +167,12 @@
       const priorityClass = r.priority >= 7 ? 'high' : r.priority >= 4 ? 'medium' : 'low';
       const daysClass = r.daysUntil <= 2 ? 'urgent' : r.daysUntil <= 7 ? 'soon' : '';
       const typeLabel = typeLabels[r.type] || '其他';
+      const conflictHtml = r.hasConflict ? `<span class="conflict-badge">${ReminderEngine.getConflictLabel(r.conflictResolution)}</span>` : '';
 
       return `
-        <div class="reminder-row ${priorityClass}">
+        <div class="reminder-row ${priorityClass} ${r.hasConflict ? 'has-conflict' : ''}">
           <div class="reminder-row-info">
-            <h4>${r.name}</h4>
+            <h4>${r.name} ${conflictHtml}</h4>
             <p>${r.stage.label}</p>
             <span class="reminder-row-type">${typeLabel}</span>
           </div>

@@ -135,20 +135,62 @@
       return suggestions[Math.floor(Math.random() * suggestions.length)];
     },
 
+    detectConflicts(specialDays) {
+      const conflictMap = {};
+      specialDays.forEach(day => {
+        const key = `${day.month}-${day.day}`;
+        if (!conflictMap[key]) {
+          conflictMap[key] = [];
+        }
+        conflictMap[key].push(day);
+      });
+
+      const conflicts = {};
+      for (const key in conflictMap) {
+        if (conflictMap[key].length > 1) {
+          const days = conflictMap[key];
+          const hasTravel = days.some(d => d.type === 'travel');
+          const resolved = days.map(d => {
+            const existing = d.conflictResolution;
+            if (existing) return d;
+            if (hasTravel && d.type !== 'travel') {
+              return { ...d, conflictResolution: 'traveling' };
+            }
+            return { ...d, conflictResolution: 'merge' };
+          });
+          conflicts[key] = resolved;
+        }
+      }
+      return conflicts;
+    },
+
+    getConflictLabel(resolution) {
+      const labels = {
+        traveling: '🧳 旅行中，可能需要简化安排',
+        merge: '📅 同日多项，建议合并庆祝',
+        reschedule: '🔄 建议改期'
+      };
+      return labels[resolution] || '';
+    },
+
     async getTodayReminders() {
       const [specialDays, settings] = await Promise.all([
         AppStorage.getSpecialDays(),
         AppStorage.getSettings()
       ]);
 
+      const conflicts = this.detectConflicts(specialDays);
+
       const today = new Date();
-      const reminders = specialDays
+      let reminders = specialDays
         .map(day => {
           const nextDate = this.getNextOccurrence(day.month, day.day);
           const days = this.daysUntil(nextDate);
           const stage = this.getStage(days);
           const priority = this.getPriority(day, days, settings);
           const text = this.getReminderText(day, days, settings.tone);
+          const conflictKey = `${day.month}-${day.day}`;
+          const conflictInfo = conflicts[conflictKey] || null;
 
           return {
             ...day,
@@ -156,13 +198,21 @@
             daysUntil: days,
             stage,
             priority,
-            text
+            text,
+            hasConflict: !!conflictInfo,
+            conflictResolution: day.conflictResolution || (conflictInfo ? (conflictInfo.find(c => c.id === day.id) || {}).conflictResolution : null)
           };
         })
-        .filter(r => r.daysUntil >= 0)
-        .sort((a, b) => a.daysUntil - b.daysUntil);
+        .filter(r => r.daysUntil >= 0);
 
-      return reminders;
+      const frequency = settings.frequency || 'daily';
+      if (frequency === 'approaching') {
+        reminders = reminders.filter(r => r.daysUntil <= 3);
+      } else if (frequency === 'today') {
+        reminders = reminders.filter(r => r.daysUntil === 0);
+      }
+
+      return reminders.sort((a, b) => a.daysUntil - b.daysUntil);
     },
 
     async getUpcomingDays(days = 3) {
@@ -222,6 +272,8 @@
         AppStorage.getSettings()
       ]);
 
+      const conflicts = this.detectConflicts(specialDays);
+
       const forecast = [];
       const today = new Date();
 
@@ -236,19 +288,31 @@
           target.setHours(0, 0, 0, 0);
           return nextDate.getTime() === target.getTime();
         }).map(day => {
-          const days = this.daysUntil(this.getNextOccurrence(day.month, day.day));
+          const conflictKey = `${day.month}-${day.day}`;
+          const conflictInfo = conflicts[conflictKey];
+          const conflictItem = conflictInfo ? conflictInfo.find(c => c.id === day.id) : null;
+          
           return {
             ...day,
-            text: this.getReminderText(day, days, settings.tone)
+            daysUntil: i,
+            text: this.getReminderText(day, i, settings.tone),
+            hasConflict: !!conflictInfo,
+            conflictResolution: day.conflictResolution || (conflictItem ? conflictItem.conflictResolution : null)
           };
         });
+
+        const dateConflictKey = `${date.getMonth() + 1}-${date.getDate()}`;
+        const dayConflict = conflicts[dateConflictKey];
 
         forecast.push({
           date: date.toISOString().split('T')[0],
           weekday: ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][date.getDay()],
           isToday: i === 0,
+          dayOffset: i,
           dayLabel: i === 0 ? '今天' : i === 1 ? '明天' : '后天',
-          reminders: dayReminders
+          reminders: dayReminders,
+          hasConflict: !!dayConflict,
+          conflictCount: dayConflict ? dayConflict.length : 0
         });
       }
 

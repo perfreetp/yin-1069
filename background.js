@@ -76,11 +76,22 @@ const Background = {
     chrome.storage.onChanged.addListener(async (changes, area) => {
       if (area === 'local') {
         if (changes.settings) {
-          this.updateAlarmTime(changes.settings.newValue.reminderTime);
+          const newSettings = changes.settings.newValue;
+          this.updateAlarmTime(newSettings.reminderTime);
+          
+          if (!newSettings.autoIncreasePriority) {
+            chrome.action.setBadgeText({ text: '' });
+          } else {
+            const reminders = await ReminderEngine.getTodayReminders();
+            this.updateBadge(reminders);
+          }
         }
-        if (changes.specialDays || changes.settings) {
-          const reminders = await ReminderEngine.getTodayReminders();
-          this.updateBadge(reminders);
+        if (changes.specialDays) {
+          const settings = await AppStorage.getSettings();
+          if (settings.autoIncreasePriority) {
+            const reminders = await ReminderEngine.getTodayReminders();
+            this.updateBadge(reminders);
+          }
         }
       }
     });
@@ -92,6 +103,7 @@ const Background = {
 
   async handleDailyReminder() {
     try {
+      const settings = await AppStorage.getSettings();
       const reminders = await ReminderEngine.getTodayReminders();
       const upcoming = reminders.filter(r => r.daysUntil <= 3 && r.daysUntil >= 0);
 
@@ -102,15 +114,15 @@ const Background = {
           : `${nearest.name}还有${nearest.daysUntil}天`;
         
         const message = nearest.text;
-        const priority = nearest.priority >= 7 ? 2 : nearest.priority >= 4 ? 1 : 0;
+        const notificationPriority = (settings.autoIncreasePriority && nearest.priority >= 7) ? 2 : nearest.priority >= 4 ? 1 : 0;
 
         chrome.notifications.create(`reminder_${nearest.id}`, {
           type: 'basic',
           iconUrl: 'icons/icon128.png',
           title,
           message,
-          priority,
-          requireInteraction: nearest.daysUntil <= 1,
+          priority: notificationPriority,
+          requireInteraction: settings.autoIncreasePriority && nearest.daysUntil <= 1,
           buttons: [
             { title: '已确认' },
             { title: '稍后' }
@@ -126,7 +138,14 @@ const Background = {
 
   async checkPriorityIncrease() {
     try {
+      const settings = await AppStorage.getSettings();
       const reminders = await ReminderEngine.getTodayReminders();
+
+      if (!settings.autoIncreasePriority) {
+        chrome.action.setBadgeText({ text: '' });
+        return;
+      }
+
       const urgent = reminders.filter(r => r.daysUntil <= 1 && r.daysUntil >= 0);
 
       this.updateBadge(reminders);
@@ -156,6 +175,13 @@ const Background = {
 
   async updateBadge(reminders) {
     try {
+      const settings = await AppStorage.getSettings();
+      
+      if (!settings.autoIncreasePriority) {
+        chrome.action.setBadgeText({ text: '' });
+        return;
+      }
+
       const urgentCount = reminders.filter(r => r.daysUntil <= 3 && r.daysUntil >= 0).length;
       
       if (urgentCount > 0) {

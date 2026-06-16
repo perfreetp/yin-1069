@@ -18,6 +18,7 @@
 
   function cacheElements() {
     elements.toneInputs = document.querySelectorAll('input[name="tone"]');
+    elements.frequency = document.getElementById('frequency');
     elements.reminderTime = document.getElementById('reminderTime');
     elements.autoIncreasePriority = document.getElementById('autoIncreasePriority');
     elements.advanceDays = document.getElementById('advanceDays');
@@ -104,6 +105,7 @@
       input.checked = input.value === state.settings.tone;
     });
 
+    elements.frequency.value = state.settings.frequency || 'daily';
     elements.reminderTime.value = state.settings.reminderTime;
     elements.autoIncreasePriority.checked = state.settings.autoIncreasePriority;
     elements.advanceDays.value = state.settings.advanceDays;
@@ -130,13 +132,15 @@
 
     elements.specialDaysList.innerHTML = sortedDays.map(day => {
       const daysUntil = ReminderEngine.daysUntil(ReminderEngine.getNextOccurrence(day.month, day.day));
+      const conflictLabel = day.conflictResolution ? ` <span class="day-conflict-badge">${ReminderEngine.getConflictLabel(day.conflictResolution)}</span>` : '';
       
       return `
-        <div class="day-item" data-id="${day.id}">
+        <div class="day-item ${day.conflictResolution ? 'has-conflict' : ''}" data-id="${day.id}">
           <div class="day-item-info">
             <h4>
               ${day.name}
               <span class="day-type-badge">${typeLabels[day.type] || '其他'}</span>
+              ${conflictLabel}
             </h4>
             <p>${day.month}月${day.day}日 · 还有${daysUntil}天</p>
           </div>
@@ -263,6 +267,71 @@
       return;
     }
 
+    const existingOnSameDay = state.specialDays.filter(d => {
+      if (state.editingDayId && d.id === state.editingDayId) return false;
+      return d.month === month && d.day === day;
+    });
+
+    if (existingOnSameDay.length > 0) {
+      const existingNames = existingOnSameDay.map(d => d.name).join('、');
+      const hasTravel = existingOnSameDay.some(d => d.type === 'travel') || type === 'travel';
+      
+      let resolution = 'merge';
+      if (hasTravel) {
+        resolution = 'traveling';
+      }
+
+      const conflictLabels = {
+        traveling: '标记为旅行中（简化安排）',
+        merge: '合并提醒（一起庆祝）',
+        reschedule: '提示改期'
+      };
+
+      const choices = Object.entries(conflictLabels).map(([key, label]) => `${key}: ${label}`).join('\n');
+      const userChoice = confirm(
+        `⚠️ ${month}月${day}日已有「${existingNames}」，存在冲突。\n\n点击"确定"将${resolution === 'traveling' ? '标记为旅行中（简化安排）' : '合并提醒（一起庆祝）'}。\n点击"取消"放弃添加，手动调整日期。`
+      );
+
+      if (!userChoice) return;
+
+      if (state.editingDayId) {
+        const index = state.specialDays.findIndex(d => d.id === state.editingDayId);
+        if (index !== -1) {
+          state.specialDays[index] = {
+            ...state.specialDays[index],
+            name,
+            month,
+            day,
+            type,
+            note,
+            conflictResolution: resolution
+          };
+        }
+      } else {
+        state.specialDays.push({
+          id: Date.now().toString(),
+          name,
+          month,
+          day,
+          type,
+          note,
+          conflictResolution: resolution
+        });
+      }
+
+      existingOnSameDay.forEach(d => {
+        const idx = state.specialDays.findIndex(s => s.id === d.id);
+        if (idx !== -1 && !state.specialDays[idx].conflictResolution) {
+          state.specialDays[idx].conflictResolution = resolution;
+        }
+      });
+
+      renderSpecialDays();
+      closeDayModal();
+      showSaveStatus('已保存（含冲突处理）');
+      return;
+    }
+
     if (state.editingDayId) {
       const index = state.specialDays.findIndex(d => d.id === state.editingDayId);
       if (index !== -1) {
@@ -274,17 +343,17 @@
           type,
           note
         };
+        delete state.specialDays[index].conflictResolution;
       }
     } else {
-      const newDay = {
+      state.specialDays.push({
         id: Date.now().toString(),
         name,
         month,
         day,
         type,
         note
-      };
-      state.specialDays.push(newDay);
+      });
     }
 
     renderSpecialDays();
@@ -304,10 +373,10 @@
     const tone = document.querySelector('input[name="tone"]:checked').value;
     const settings = {
       tone,
+      frequency: elements.frequency.value,
       reminderTime: elements.reminderTime.value,
       autoIncreasePriority: elements.autoIncreasePriority.checked,
-      advanceDays: parseInt(elements.advanceDays.value),
-      frequency: 'daily'
+      advanceDays: parseInt(elements.advanceDays.value)
     };
 
     const partnerPrefs = {

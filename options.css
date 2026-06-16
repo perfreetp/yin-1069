@@ -282,6 +282,22 @@ body {
   vertical-align: middle;
 }
 
+.day-conflict-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #fef3c7;
+  color: #92400e;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.day-item.has-conflict {
+  border-left-color: #f59e0b;
+  background: #fffbeb;
+}
+
 .day-actions {
   display: flex;
   gap: 6px;

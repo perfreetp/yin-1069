@@ -45,6 +45,16 @@
         </div>
 
         <div class="setting-group">
+          <label class="setting-label">提醒频率</label>
+          <select id="frequency" class="select-input">
+            <option value="daily">每天提醒</option>
+            <option value="approaching">仅临近 3 天时提醒</option>
+            <option value="today">仅当天提醒</option>
+          </select>
+          <p class="setting-hint">选择后，后台提醒和主页显示都会按此频率过滤</p>
+        </div>
+
+        <div class="setting-group">
           <label class="setting-label">每日提醒时间</label>
           <input type="time" id="reminderTime" class="time-input">
         </div>
