@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>伴侣提醒 - 设置</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="options-container">
+    <header class="options-header">
+      <h1>⚙️ 伴侣提醒设置</h1>
+      <p class="header-desc">把"知道、记得、会开口"这三件事做好</p>
+    </header>
+
+    <main class="options-main">
+      <section class="settings-section">
+        <h2 class="section-title">🔔 提醒设置</h2>
+        
+        <div class="setting-group">
+          <label class="setting-label">提醒语气</label>
+          <div class="tone-options">
+            <label class="tone-option">
+              <input type="radio" name="tone" value="gentle">
+              <div class="tone-card">
+                <div class="tone-name">🌸 温柔体贴</div>
+                <div class="tone-desc">像贴心闺蜜一样提醒你</div>
+              </div>
+            </label>
+            <label class="tone-option">
+              <input type="radio" name="tone" value="direct">
+              <div class="tone-card">
+                <div class="tone-name">📋 直接提醒</div>
+                <div class="tone-desc">简洁明了，不啰嗦</div>
+              </div>
+            </label>
+            <label class="tone-option">
+              <input type="radio" name="tone" value="humorous">
+              <div class="tone-card">
+                <div class="tone-name">😂 幽默调侃</div>
+                <div class="tone-desc">求生欲满满的提醒方式</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">每日提醒时间</label>
+          <input type="time" id="reminderTime" class="time-input">
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">
+            <input type="checkbox" id="autoIncreasePriority" class="checkbox">
+            <span>临近时自动升高提醒优先级</span>
+          </label>
+          <p class="setting-hint">距离重要日子 3 天以内时，提醒会更醒目</p>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">提前预告天数</label>
+          <select id="advanceDays" class="select-input">
+            <option value="1">1 天</option>
+            <option value="3">3 天</option>
+            <option value="7">7 天</option>
+            <option value="14">14 天</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <div class="section-header">
+          <h2 class="section-title">📅 重要日子</h2>
+          <button id="addDayBtn" class="add-btn">+ 添加</button>
+        </div>
+        
+        <div id="specialDaysList" class="days-list">
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h2 class="section-title">💝 她的偏好</h2>
+        
+        <div class="setting-group">
+          <label class="setting-label">偏好的沟通方式</label>
+          <select id="communicationStyle" class="select-input">
+            <option value="gentle">温柔体贴型</option>
+            <option value="direct">直接表达型</option>
+            <option value="humorous">幽默逗趣型</option>
+          </select>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">适合聊天的时间</label>
+          <select id="bestTimeToTalk" class="select-input">
+            <option value="morning">早上</option>
+            <option value="afternoon">下午</option>
+            <option value="evening">晚上</option>
+            <option value="anytime">随时都可以</option>
+          </select>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">她喜欢的东西</label>
+          <div class="tags-input-container">
+            <div id="likesTags" class="tags-list"></div>
+            <input type="text" id="likeInput" class="tag-input" placeholder="输入后按回车添加">
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">她不喜欢的东西</label>
+          <div class="tags-input-container">
+            <div id="dislikesTags" class="tags-list"></div>
+            <input type="text" id="dislikeInput" class="tag-input" placeholder="输入后按回车添加">
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">其他备注</label>
+          <textarea id="partnerNote" class="textarea-input" rows="3" placeholder="比如：她姨妈期大概在每月中旬..."></textarea>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h2 class="section-title">📊 数据管理</h2>
+        
+        <div class="setting-group">
+          <button id="exportDataBtn" class="secondary-btn">导出数据</button>
+          <button id="importDataBtn" class="secondary-btn">导入数据</button>
+          <input type="file" id="importFile" accept=".json" style="display: none;">
+        </div>
+
+        <div class="setting-group">
+          <button id="resetDataBtn" class="danger-btn">重置所有数据</button>
+          <p class="setting-hint danger">警告：此操作不可恢复</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="options-footer">
+      <button id="saveBtn" class="save-btn">保存设置</button>
+      <span id="saveStatus" class="save-status"></span>
+    </footer>
+  </div>
+
+  <div id="addDayModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>添加重要日子</h3>
+        <button id="closeDayModal" class="close-btn">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>名称</label>
+          <input type="text" id="dayName" class="text-input" placeholder="比如：纪念日、她的生日...">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>月份</label>
+            <select id="dayMonth" class="select-input">
+              <option value="1">1月</option>
+              <option value="2">2月</option>
+              <option value="3">3月</option>
+              <option value="4">4月</option>
+              <option value="5">5月</option>
+              <option value="6">6月</option>
+              <option value="7">7月</option>
+              <option value="8">8月</option>
+              <option value="9">9月</option>
+              <option value="10">10月</option>
+              <option value="11">11月</option>
+              <option value="12">12月</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>日期</label>
+            <input type="number" id="dayDay" class="text-input" min="1" max="31" placeholder="日">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>类型</label>
+          <select id="dayType" class="select-input">
+            <option value="anniversary">纪念日</option>
+            <option value="birthday">生日</option>
+            <option value="travel">旅行</option>
+            <option value="other">其他</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>备注（可选）</label>
+          <input type="text" id="dayNote" class="text-input" placeholder="比如：第一次约会的日子">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelDayBtn" class="secondary-btn">取消</button>
+        <button id="confirmDayBtn" class="save-btn">添加</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="storage.js"></script>
+  <script src="reminder-engine.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
